@@ -158,7 +158,6 @@ GTEST_TEST(Test_Threading_TaskRunner, RunAfterTerminated)
 		auto task1 = Threading::MakeLambdaTask(
 			threadFunc
 		);
-		Threading::Task* taskPtr = task1.get();
 
 		Threading::TaskRunner taskRunner;
 		taskRunner.TerminateTask();
@@ -167,7 +166,7 @@ GTEST_TEST(Test_Threading_TaskRunner, RunAfterTerminated)
 		// This should return immediately, since the task runner is already
 		// terminated
 		taskRunner.ThreadRunner(
-			[&taskRunner, taskPtr]
+			[]
 			(Threading::TaskRunner*, std::unique_ptr<Threading::Task>) ->
 				std::unique_ptr<Threading::Task>
 			{
@@ -203,7 +202,7 @@ GTEST_TEST(Test_Threading_TaskRunner, TaskExceptionHandling)
 		auto testProg = [&taskRunner] ()
 		{
 			taskRunner.ThreadRunner(
-				[&taskRunner]
+				[]
 				(Threading::TaskRunner*, std::unique_ptr<Threading::Task>) ->
 					std::unique_ptr<Threading::Task>
 				{
@@ -246,7 +245,7 @@ GTEST_TEST(Test_Threading_TaskRunner, TaskExceptionHandling)
 		auto testProg = [&taskRunner] ()
 		{
 			taskRunner.ThreadRunner(
-				[&taskRunner]
+				[]
 				(Threading::TaskRunner*, std::unique_ptr<Threading::Task>) ->
 					std::unique_ptr<Threading::Task>
 				{
@@ -292,7 +291,7 @@ GTEST_TEST(Test_Threading_TaskRunner, TerminateRunningTask)
 		taskRunner.AssignTask(std::move(task1));
 
 		auto finishCallback =
-			[&taskRunner]
+			[]
 			(Threading::TaskRunner*, std::unique_ptr<Threading::Task>) ->
 				std::unique_ptr<Threading::Task>
 			{

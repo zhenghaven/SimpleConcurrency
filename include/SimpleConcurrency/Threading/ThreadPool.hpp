@@ -110,10 +110,10 @@ public:
 				std::lock_guard<std::mutex> lock(m_pendingTasksMutex);
 				if (m_pendingTasks.size() > 0)
 				{
-					std::unique_ptr<Task>& task = m_pendingTasks.front();
-					CreateNewThread(task);
+					std::unique_ptr<Task>& firstTask = m_pendingTasks.front();
+					CreateNewThread(firstTask);
 
-					if (task == nullptr)
+					if (firstTask == nullptr)
 					{
 						// task is moved to the new thread
 						--m_pendingTasksSize;
