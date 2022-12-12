@@ -122,6 +122,12 @@ protected:
 	}
 
 
+	bool IsTickIntervalEnabled() const
+	{
+		return m_enableTickInterval;
+	}
+
+
 private:
 
 	std::atomic_bool m_isTerminating;

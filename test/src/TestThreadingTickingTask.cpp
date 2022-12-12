@@ -60,6 +60,9 @@ public:
 	using Base::DisableTickInterval;
 
 
+	using Base::IsTickIntervalEnabled;
+
+
 protected:
 
 	virtual void Tick() override
@@ -108,6 +111,7 @@ GTEST_TEST(Test_Threading_TickingTask, NoInterval)
 		std::unique_ptr<TestTickingTask> task(
 			new TestTickingTask(testCounter1, testCounter2)
 		);
+		EXPECT_FALSE(task->IsTickIntervalEnabled());
 
 		Threading::ThreadPool pool(1);
 
@@ -136,6 +140,7 @@ GTEST_TEST(Test_Threading_TickingTask, NoInterval)
 			)
 		);
 		task->DisableTickInterval();
+		EXPECT_FALSE(task->IsTickIntervalEnabled());
 
 		Threading::ThreadPool pool(1);
 
@@ -167,6 +172,7 @@ GTEST_TEST(Test_Threading_TickingTask, WithInterval)
 				10
 			)
 		);
+		EXPECT_TRUE(task->IsTickIntervalEnabled());
 
 		Threading::ThreadPool pool(1);
 
@@ -193,6 +199,7 @@ GTEST_TEST(Test_Threading_TickingTask, WithInterval)
 			)
 		);
 		task->SetInterval(1, 10);
+		EXPECT_TRUE(task->IsTickIntervalEnabled());
 
 		Threading::ThreadPool pool(1);
 
