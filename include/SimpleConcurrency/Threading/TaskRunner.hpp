@@ -28,7 +28,8 @@ class TaskRunner
 {
 public:
 	TaskRunner() :
-		m_taskMutex(),
+		m_taskROMutex(),
+		m_taskNRMutex(),
 		m_taskCV(),
 		m_task(),
 		m_isTerminated(false),
@@ -51,9 +52,11 @@ public:
 		while(!m_isTerminating)
 		{
 			// wait until there is a task to run
-			std::unique_lock<std::mutex> lock(m_taskMutex);
+			std::unique_lock<std::mutex> roLock(m_taskROMutex);
+			// roLock ensure other threads has read only access to m_task
+			// wait release the lock, so other threads can write to m_task
 			m_taskCV.wait(
-				lock,
+				roLock,
 				[this]() {
 					return
 						(m_task != nullptr) ||
@@ -62,20 +65,14 @@ public:
 			);
 
 			// mutex is locked again here
+			// roLock ensure other threads has read only access to m_task
 
 			if (!m_isTerminating)
 			{
-				std::unique_ptr<Task> task;
 				try
 				{
 					// It's not terminating, so it must be a task to run
-					RunThreadTask();
-
-					// this task is finished, notify the caller,
-					// and try to get a new task
-					task = finishCallback(
-						this, std::move(m_task)
-					);
+					RunThreadTask(); // m_task is accessed here
 				}
 				catch(...)
 				{
@@ -87,15 +84,44 @@ public:
 					throw;
 				}
 
-				// reset the task
-				ResetTaskNonLocking();
+				// ======
+				// this task is finished, notify the caller,
+				// and try to get a new task
+				// =====-
 
-				// assign the new task
+				std::unique_ptr<Task> tmpTask;
+				{
+					std::lock_guard<std::mutex> nrLock(m_taskNRMutex);
+					// nrLock ensure other threads has no read access
+					tmpTask = std::move(m_task);
+				}
+
+				try
+				{
+					tmpTask = finishCallback(
+						this, std::move(tmpTask)
+					);
+				}
+				catch(...)
+				{
+					m_isTerminated = true;
+					throw;
+				}
+
+				{
+					std::lock_guard<std::mutex> nrLock(m_taskNRMutex);
+					// nrLock ensure other threads has no read access
+					m_task = std::move(tmpTask);
+				}
+
+				// new task is assigned
+				m_isThreadTaskFinished = false;
+
+				// m_task is updated above
 				// if the task is nullptr, we will try to wait for a new task
 				// in the next loop
 				// otherwise, instead of waiting, we will run the new task
 				// in the next loop
-				m_task = std::move(task);
 			}
 
 			// back to waiting for new task
@@ -115,19 +141,33 @@ public:
 		// in case the thread is already running the task, terminate it
 		if (m_task)
 		{
-			m_task->Terminate();
+			// a peek at the task shows there might be a task running
+			std::lock_guard<std::mutex> lock(m_taskNRMutex);
+			// nrLock ensure this thread gets read only access to m_task
+			// have to lock the mutex to make sure the task is still there
+			// before terminating it
+			if (m_task)
+			{
+				m_task->Terminate();
+			}
 		}
 	}
 
 
 	void AssignTask(std::unique_ptr<Task> task)
 	{
-		std::lock_guard<std::mutex> lock(m_taskMutex);
-		// the mutex is locked by this thread (i.e., not locked by other thread)
-		// so the other thread must be waiting for a task
+		{
+			std::lock_guard<std::mutex> lock(m_taskROMutex);
+			// roLock ensure other threads has read only access to m_task
+			// the mutex is locked by this thread
+			// (i.e., not locked by other thread)
+			// so the other thread must be waiting for a task
+			std::lock_guard<std::mutex> nrLock(m_taskNRMutex);
+			// nrLock ensure other threads has no read access
 
-		// assign the task
-		m_task = std::move(task);
+			// assign the task
+			m_task = std::move(task);
+		}
 
 		// notify the other thread that there is a task to run
 		m_taskCV.notify_all();
@@ -141,13 +181,6 @@ public:
 
 
 protected:
-
-
-	void ResetTaskNonLocking()
-	{
-		m_task.reset();
-		m_isThreadTaskFinished = false;
-	}
 
 
 	void RunThreadTask()
@@ -171,7 +204,8 @@ protected:
 
 private:
 
-	mutable std::mutex m_taskMutex;
+	mutable std::mutex m_taskROMutex;
+	mutable std::mutex m_taskNRMutex;
 	mutable std::condition_variable m_taskCV;
 	std::unique_ptr<Task> m_task;
 	std::atomic_bool m_isTerminated;

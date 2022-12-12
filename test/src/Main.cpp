@@ -12,7 +12,7 @@ namespace SimpleConcurrency_Test
 
 int main(int argc, char** argv)
 {
-	constexpr size_t EXPECTED_NUM_OF_TEST_FILE = 3;
+	constexpr size_t EXPECTED_NUM_OF_TEST_FILE = 4;
 
 	std::cout << "===== SimpleConcurrency test program =====" << std::endl;
 	std::cout << std::endl;
