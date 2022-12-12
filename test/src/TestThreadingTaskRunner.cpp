@@ -310,6 +310,9 @@ GTEST_TEST(Test_Threading_TaskRunner, TerminateRunningTask)
 
 		taskRunner.TerminateTask();
 
+		// wait until the task runner is fully terminated
+		while (!taskRunner.IsTerminated()) {}
+
 		testThread.join();
 
 		std::cout << "Loop count: " << loopCount << std::endl;
